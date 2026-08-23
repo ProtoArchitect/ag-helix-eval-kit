@@ -1,3 +1,7 @@
+> **Proprietary Evaluation & Review Kit**
+> This repository is provided exclusively for technical due diligence and academic review by authorized partners. The core engine IP remains closed-source and proprietary. No commercial use or unauthorized forks are permitted.
+
+
 # AG-Helix Open Evaluation Framework
 
 This repository provides an open-source benchmarking harness for independently verifying the memory and performance claims of the AG-Helix topological processor.
