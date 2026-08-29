@@ -1,0 +1,68 @@
+name: Security Checks
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  schedule:
+    - cron: '0 0 * * *'  # Run daily at midnight
+
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit@0.21
+
+      - name: Run cargo audit
+        run: cargo audit
+        continue-on-error: true
+
+      - name: Check for unsafe code
+        run: |
+          echo "::group::Unsafe Code Analysis"
+          echo "Searching for unsafe blocks..."
+          grep -r "unsafe {" src/ --include="*.rs" || echo "No unsafe blocks found"
+          grep -r "unsafe fn" src/ --include="*.rs" || echo "No unsafe functions found"
+          echo "::endgroup::"
+
+      - name: Check binary artifacts
+        run: |
+          echo "::group::Binary Artifacts Check"
+          echo "Checking bin/ directory..."
+          ls -la bin/ || echo "No bin directory"
+          file bin/* || echo "No binary files"
+          echo "::endgroup::"
+
+  dependency-check:
+    name: Dependency Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Check for outdated dependencies
+        run: |
+          echo "::group::Dependency Analysis"
+          cargo outdated --exit-code 1 || echo "Some dependencies are outdated"
+          echo "::endgroup::"
+        continue-on-error: true

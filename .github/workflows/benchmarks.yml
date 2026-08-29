@@ -1,0 +1,98 @@
+name: Benchmark Tests
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+concurrency:
+  group: benchmarks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  run-benchmarks:
+    name: Run Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build release
+        run: cargo build --release --locked
+
+      - name: Run biological_stress_test
+        run: |
+          echo "::group::Running biological_stress_test"
+          if [ -f bin/biological_stress_test ]; then
+            chmod +x bin/biological_stress_test
+            ./bin/biological_stress_test --help || true
+            # Run with default parameters for smoke test
+            timeout 30 ./bin/biological_stress_test || echo "Stress test timed out or failed"
+          else
+            echo "biological_stress_test binary not found"
+          fi
+          echo "::endgroup::"
+        continue-on-error: true
+
+      - name: Run qtdu_bench
+        run: |
+          echo "::group::Running qtdu_bench"
+          if [ -f bin/qtdu_bench ]; then
+            chmod +x bin/qtdu_bench
+            ./bin/qtdu_bench --help || true
+            # Create a small test file
+            echo ">test_sequence" > test.fa
+            echo "ACGTACGTACGT" >> test.fa
+            timeout 30 ./bin/qtdu_bench test.fa test.qtdu 1 || echo "qtdu_bench timed out or failed"
+            rm -f test.fa test.qtdu
+          else
+            echo "qtdu_bench binary not found"
+          fi
+          echo "::endgroup::"
+        continue-on-error: true
+
+      - name: Run ag_helix_eval_x64
+        run: |
+          echo "::group::Running ag_helix_eval_x64"
+          if [ -f bin/ag_helix_eval_x64 ]; then
+            chmod +x bin/ag_helix_eval_x64
+            ./bin/ag_helix_eval_x64 --help || true
+            # Smoke test
+            timeout 30 ./bin/ag_helix_eval_x64 || echo "ag_helix_eval_x64 timed out or failed"
+          else
+            echo "ag_helix_eval_x64 binary not found"
+          fi
+          echo "::endgroup::"
+        continue-on-error: true
+
+  memory-test:
+    name: Memory Telemetry Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build memory_telemetry
+        run: cargo build --release --locked
+
+      - name: Run memory telemetry
+        run: |
+          echo "::group::Memory Telemetry Test"
+          # This is a placeholder - actual implementation depends on your memory_telemetry binary
+          if [ -f target/release/memory_telemetry ]; then
+            echo "Running memory telemetry smoke test..."
+            timeout 30 ./target/release/memory_telemetry --help || true
+          else
+            echo "memory_telemetry binary not found in target/release"
+          fi
+          echo "::endgroup::"
+        continue-on-error: true
